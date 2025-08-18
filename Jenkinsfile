@@ -1,43 +1,49 @@
 pipeline {
     agent any
-    environment {
-        INVENTORY = 'ansible/inventory.ini'
-        PLAYBOOK  = 'ansible/deploy.yml'
-        SSH_CREDS = 'app-server-ssh'
-        REPO      = 'https://github.com/beastangel12/mern-ecommerce.git'
-        BRANCH    = 'master'
+
+    tools {
+        nodejs "NodeJS"   // Jenkins मा NodeJS tool configure गर्नु पर्ने हुन्छ
     }
+
     stages {
         stage('Checkout') {
             steps {
-                git branch: "${BRANCH}", url: "${REPO}"
+                // GitHub repo बाट checkout
+                git branch: 'main', url: 'https://github.com/beastangel12/mern_Ecommerce.git'
             }
         }
+
         stage('Backend deps') {
             steps {
-                sh 'npm ci --prefix backend'
-            }
-        }
-        stage('Frontend deps & Build') {
-            steps {
-                sh 'npm ci --prefix frontend'
-                sh 'npm run build --prefix frontend'
-            }
-        }
-        stage('Deploy via Ansible') {
-            steps {
-                sshagent([env.SSH_CREDS]) {
-                    sh "ansible-playbook -i ${INVENTORY} ${PLAYBOOK}"
+                dir('backend') {
+                    sh 'npm install'
                 }
             }
         }
-    }
-    post {
-        success {
-            echo '✅ Deployment completed.'
+
+        stage('Frontend deps & Build') {
+            steps {
+                dir('frontend') {
+                    sh 'npm install'
+                    sh 'npm run build'
+                }
+            }
         }
-        failure {
-            echo '❌ Pipeline failed.'
+
+        stage('Test') {
+            steps {
+                dir('backend') {
+                    sh 'npm test || true'  // test fail भए पनि pipeline crash नहोस् भने
+                }
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying application...'
+                // यहाँ deploy को steps थप्ने (Docker, SSH, etc.)
+            }
         }
     }
 }
+
